@@ -13,7 +13,11 @@ import {
   FormHelperText,
   FormLabel,
   Heading,
+  IconButton,
   Input,
+  InputGroup,
+  InputRightAddon,
+  InputRightElement,
   Progress,
   Skeleton,
   SkeletonText,
@@ -22,6 +26,7 @@ import {
   VStack,
 } from '@chakra-ui/react';
 import { analyzeSentiment } from '@/actions/analyzeSentiment';
+import { CloseIcon } from '@chakra-ui/icons';
 
 const sentimentValues = {
   positive: {
@@ -64,7 +69,23 @@ export default function Home() {
       <Spacer h={20} />
       <FormControl isInvalid={!!errorMessage}>
         <FormLabel>뉴스 URL 주소</FormLabel>
-        <Input type="text" value={newsURL} onChange={e => setNewsURL(e.target.value)} />
+        <InputGroup>
+          <Input type="text" value={newsURL} onChange={e => setNewsURL(e.target.value)} />
+          {newsURL.length > 0 && (
+            <InputRightElement>
+              <IconButton
+                isRound={true}
+                variant="solid"
+                colorScheme="gray"
+                aria-label="Clear input"
+                size="xs"
+                fontSize={8}
+                icon={<CloseIcon />}
+                onClick={() => setNewsURL('')}
+              />
+            </InputRightElement>
+          )}
+        </InputGroup>
         {!errorMessage ? (
           <FormHelperText>분석할 네이버 뉴스 URL을 입력해 주세요</FormHelperText>
         ) : (

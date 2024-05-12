@@ -16,8 +16,8 @@ export async function fetchNews(url: string) {
 
   const html = new DOMParser().parseFromString(data, 'text/html');
 
-  const title = html.getElementById('title_area')?.innerText;
-  const content = html.getElementById('dic_area')?.innerText;
+  const title = html.getElementById('title_area')?.innerText.trim();
+  const content = html.getElementById('dic_area')?.innerText.trim();
 
   if (!title || !content) {
     throw new Error('뉴스 제목과 내용을 가져오는데 실패했습니다.');
