@@ -1,95 +1,168 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+'use client';
+import { useState } from 'react';
+import { useMutation, QueryClient, useQueryClient } from '@tanstack/react-query';
+import { fetchNews, urlSchema } from '@/actions/fetchNews';
+import {
+  Button,
+  Card,
+  CardBody,
+  Container,
+  Flex,
+  FormControl,
+  FormErrorMessage,
+  FormHelperText,
+  FormLabel,
+  Heading,
+  Input,
+  Progress,
+  Skeleton,
+  SkeletonText,
+  Spacer,
+  Text,
+  VStack,
+} from '@chakra-ui/react';
+import { analyzeSentiment } from '@/actions/analyzeSentiment';
+
+const sentimentValues = {
+  positive: {
+    label: '긍정',
+    color: 'blue',
+  },
+  negative: {
+    label: '부정',
+    color: 'red',
+  },
+  neutral: {
+    label: '중립',
+    color: 'gray',
+  },
+} as const;
 
 export default function Home() {
+  const queryClient = useQueryClient();
+  const [newsURL, setNewsURL] = useState('');
+  const { error } = urlSchema.safeParse(newsURL);
+  const errorMessage = newsURL.length > 0 ? error?.issues[0]?.message : undefined;
+
+  const { mutateAsync: getNews, data: newsData, isPending: isFetchingNews } = useMutation({ mutationFn: fetchNews });
+  const {
+    mutateAsync: analyzeNewsSentiment,
+    data: sentimentData,
+    isPending: isAnalyzing,
+    reset,
+  } = useMutation({ mutationFn: analyzeSentiment });
+
+  const onSubmit = async () => {
+    reset();
+
+    const news = await getNews(newsURL);
+    await analyzeNewsSentiment(news.textContent);
+  };
+
   return (
-    <main className={styles.main}>
-      <div className={styles.description}>
-        <p>
-          Get started by editing&nbsp;
-          <code className={styles.code}>src/app/page.tsx</code>
-        </p>
-        <div>
-          <a
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className={styles.vercelLogo}
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+    <Container>
+      <Spacer h={20} />
+      <FormControl isInvalid={!!errorMessage}>
+        <FormLabel>뉴스 URL 주소</FormLabel>
+        <Input type="text" value={newsURL} onChange={e => setNewsURL(e.target.value)} />
+        {!errorMessage ? (
+          <FormHelperText>분석할 네이버 뉴스 URL을 입력해 주세요</FormHelperText>
+        ) : (
+          <FormErrorMessage>{errorMessage}</FormErrorMessage>
+        )}
+      </FormControl>
+      <Spacer h={6} />
+      <Button
+        isDisabled={!!error}
+        colorScheme="blue"
+        isLoading={isFetchingNews || isAnalyzing}
+        loadingText={isFetchingNews ? '뉴스 가져오는 중' : '분석하는 중'}
+        onClick={onSubmit}
+      >
+        뉴스 가져오기
+      </Button>
 
-      <div className={styles.center}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+      <Spacer h={6} />
 
-      <div className={styles.grid}>
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Docs <span>-&gt;</span>
-          </h2>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
+      {(sentimentData || isFetchingNews || isAnalyzing) && (
+        <Card variant="outline" h={44}>
+          <CardBody>
+            <Text fontSize="sm" color="gray">
+              감정 분석 결과
+            </Text>
+            <Spacer h={1} />
+            <Heading size="md">
+              {sentimentData ? (
+                sentimentValues[sentimentData.document.sentiment].label
+              ) : (
+                <Skeleton mt={1} noOfLines={1} w={10} h={5} />
+              )}
+            </Heading>
+            <Spacer h={4} />
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Learn <span>-&gt;</span>
-          </h2>
-          <p>Learn about Next.js in an interactive course with&nbsp;quizzes!</p>
-        </a>
+            <VStack spacing={1} width="100%" align="stretch">
+              {(['positive', 'negative', 'neutral'] as const).map(sentiment => (
+                <Flex key={sentiment} align="center">
+                  <Text w={12} fontSize="small">
+                    {sentimentValues[sentiment].label}
+                  </Text>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Templates <span>-&gt;</span>
-          </h2>
-          <p>Explore starter templates for Next.js.</p>
-        </a>
+                  <Progress
+                    flex={1}
+                    value={sentimentData?.document.confidence[sentiment] ?? 0}
+                    colorScheme={sentimentValues[sentiment].color}
+                    size="sm"
+                  />
+                  <Text w={16} fontSize="small" textAlign="right">
+                    {sentimentData?.document.confidence[sentiment].toFixed(2) ?? '-'}%
+                  </Text>
+                </Flex>
+              ))}
+            </VStack>
+          </CardBody>
+        </Card>
+      )}
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className={styles.card}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2>
-            Deploy <span>-&gt;</span>
-          </h2>
-          <p>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+      <Spacer h={4} />
+
+      {(isFetchingNews || newsData) && (
+        <Card variant="filled">
+          <CardBody>
+            <Spacer h={3} />
+            <Heading size="md">
+              {isFetchingNews && <SkeletonText noOfLines={1} spacing="4" skeletonHeight="4" />}
+              {newsData?.title}
+            </Heading>
+
+            <Spacer h={4} />
+
+            {isFetchingNews && <SkeletonText noOfLines={10} spacing="4" skeletonHeight="2" />}
+            {newsData && (
+              <>
+                <Text style={{ whiteSpace: 'pre-line' }}>
+                  {/* <Highlight
+                    query={
+                      sentimentData?.sentences
+                        .filter(sentence => sentence.sentiment === 'positive')
+                        .map(sentence => sentence.content) ?? []
+                    }
+                    styles={{ bg: 'orange.100' }}
+                  > */}
+                  {`${newsData.content}${newsData.truncated ? '...' : ''}`}
+                  {/* </Highlight> */}
+                </Text>
+                <Spacer h={6} />
+                {newsData.truncated && (
+                  <Text fontSize="small" color="gray">
+                    1000자까지만 분석됩니다.
+                  </Text>
+                )}
+              </>
+            )}
+          </CardBody>
+        </Card>
+      )}
+      <Spacer h={20} />
+    </Container>
   );
 }
